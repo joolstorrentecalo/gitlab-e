@@ -4,6 +4,9 @@ module Gitlab
   module Gpg
     extend self
 
+    CleanupFailed = Class.new(StandardError)
+    CLEANUP_ATTEMPTS = 5
+
     MUTEX = Mutex.new
 
     module CurrentKeyChain
@@ -94,16 +97,40 @@ module Gitlab
       previous_dir = current_home_dir
       tmp_dir = Dir.mktmpdir
       GPGME::Engine.home_dir = tmp_dir
+
       yield
     ensure
-      # Ignore any errors when removing the tmp directory, as we may run into a
+      GPGME::Engine.home_dir = previous_dir
+
+      begin
+        cleanup_tmp_dir(tmp_dir)
+      rescue CleanupError
+        # This means we left a GPG-agent process hanging, need to see how often
+        # this happens with the number of attempts  at removal.
+        Gitlab::Sentry.track_exception(e, issue_url: 'https://gitlab.com/gitlab-org/gitlab/issues/20918')
+      end
+    end
+
+    def cleanup_tmp_dir(tmp_dir)
+      # Retry when removing the tmp directory failed, as we may run into a
       # race condition:
       # The `gpg-agent` agent process may clean up some files as well while
       # `FileUtils.remove_entry` is iterating the directory and removing all
       # its contained files and directories recursively, which could raise an
       # error.
-      FileUtils.remove_entry(tmp_dir, true)
-      GPGME::Engine.home_dir = previous_dir
+      # Failing to remove the tmp directory could leave the `gpg-agent` process
+      # running forever.
+
+      tries = 0
+
+      while tries < CLEANUP_ATTEMPTS && File.exist?(tmp_dir)
+        tries += 1
+        FileUtils.remove_entry(tmp_dir, true)
+        # Give GPG-agent a moment to clean up after itself
+        sleep 0.1 if File.exist?(tmp_dir)
+      end
+
+      raise CleanupError, "Could not remove temp gpg homedir: #{tmp_dir}" if File.exist?(tmp_dir)
     end
   end
 end

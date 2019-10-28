@@ -104,13 +104,7 @@ module Git
     end
 
     def enqueue_update_gpg_signatures
-      unsigned = GpgSignature.unsigned_commit_shas(limited_commits.map(&:sha))
-      return if unsigned.empty?
-
-      signable = Gitlab::Git::Commit.shas_with_signatures(project.repository, unsigned)
-      return if signable.empty?
-
-      CreateGpgSignatureWorker.perform_async(signable, project.id)
+      Gitlab::Gpg::CommitSignatureLoader.new(limited_commits, project).schedule_loading!
     end
 
     # It's not sufficient to just check for a blank SHA as it's possible for the

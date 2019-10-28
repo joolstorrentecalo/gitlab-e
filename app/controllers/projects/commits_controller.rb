@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-require "base64"
+require 'base64'
 
 class Projects::CommitsController < Projects::ApplicationController
   include ExtractsPath
@@ -40,15 +40,19 @@ class Projects::CommitsController < Projects::ApplicationController
   # rubocop: enable CodeReuse/ActiveRecord
 
   def signatures
+    commit_loader = Gitlab::Gpg::CommitSignatureLoader.new(@commits, project)
+    commit_loader.schedule_loading!
+
     respond_to do |format|
       format.json do
         render json: {
-          signatures: @commits.select(&:has_signature?).map do |commit|
+          signatures: commit_loader.with_loaded_signatures.map do |commit|
             {
               commit_sha: commit.sha,
               html: view_to_html_string('projects/commit/_signature', signature: commit.signature)
             }
-          end
+          end,
+          missing_signatures: commit_loader.commits_missing_signatures.any?
         }
       end
     end

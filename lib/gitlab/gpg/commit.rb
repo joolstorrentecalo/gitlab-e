@@ -33,18 +33,22 @@ module Gitlab
       def signature
         return unless has_signature?
 
-        return @signature if @signature
-
-        cached_signature = lazy_signature&.itself
-        return @signature = cached_signature if cached_signature.present?
-
-        @signature = create_cached_signature!
+        @signature ||= lazy_signature&.itself
       end
 
       def update_signature!(cached_signature)
         using_keychain do |gpg_key|
           cached_signature.update!(attributes(gpg_key))
           @signature = cached_signature
+        end
+      end
+
+      def create_cached_signature!
+        using_keychain do |gpg_key|
+          attributes = attributes(gpg_key)
+          break GpgSignature.new(attributes) if Gitlab::Database.read_only?
+
+          GpgSignature.safe_create!(attributes)
         end
       end
 
@@ -93,15 +97,6 @@ module Gitlab
         end
       rescue GPGME::Error
         nil
-      end
-
-      def create_cached_signature!
-        using_keychain do |gpg_key|
-          attributes = attributes(gpg_key)
-          break GpgSignature.new(attributes) if Gitlab::Database.read_only?
-
-          GpgSignature.safe_create!(attributes)
-        end
       end
 
       def attributes(gpg_key)
