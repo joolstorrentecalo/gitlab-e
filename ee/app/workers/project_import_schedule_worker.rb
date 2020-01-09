@@ -9,6 +9,10 @@ class ProjectImportScheduleWorker
   feature_category :importers
   sidekiq_options retry: false
 
+  worker_context do |project_id|
+    Gitlab::ApplicationContext.new(project: -> { Project.with_route.find(project_id) })
+  end
+
   # rubocop: disable CodeReuse/ActiveRecord
   def perform(project_id)
     return if Gitlab::Database.read_only?

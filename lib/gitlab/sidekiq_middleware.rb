@@ -27,6 +27,7 @@ module Gitlab
     def self.client_configurator
       lambda do |chain|
         chain.add Gitlab::SidekiqStatus::ClientMiddleware
+        chain.add Gitlab::SidekiqMiddleware::WorkerContextMiddleware # needs to be before labkit, so labkit gets the right context
         chain.add Labkit::Middleware::Sidekiq::Client
       end
     end

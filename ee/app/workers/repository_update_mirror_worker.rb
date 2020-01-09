@@ -12,7 +12,12 @@ class RepositoryUpdateMirrorWorker
   # Retry not necessary. It will try again at the next update interval.
   sidekiq_options retry: false, status_expiration: StuckImportJobsWorker::IMPORT_JOBS_EXPIRATION
 
-  attr_accessor :project, :repository, :current_user
+  worker_context do |project_id|
+    project = Project.with_route.find(project_id)
+    user = project.mirror_user || project.creator
+
+    Gitlab::ApplicationContext.new(user: user, project: project)
+  end
 
   def perform(project_id)
     project = Project.find(project_id)
