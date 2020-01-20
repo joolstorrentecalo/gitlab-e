@@ -273,6 +273,10 @@ class SomeCrossCuttingConcernWorker
 end
 ```
 
+## Worker context
+
+### Cronjob workers
+
 ## Tests
 
 Each Sidekiq worker must be tested using RSpec, just like any other class. These

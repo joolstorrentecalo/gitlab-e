@@ -101,4 +101,18 @@ describe Gitlab::ApplicationContext do
       end
     end
   end
+
+  describe '#use' do
+    let(:context) { described_class.new(user: build(:user)) }
+
+    it 'yields control' do
+      expect { |b| context.use(&b) }.to yield_control
+    end
+
+    it 'passes the expected context on to labkit' do
+      expect(Labkit::Context).to receive(:with_context).with(a_hash_including(user: duck_type(:call)))
+
+      context.use {}
+    end
+  end
 end

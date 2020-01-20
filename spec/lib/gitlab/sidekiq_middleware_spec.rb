@@ -120,6 +120,7 @@ describe Gitlab::SidekiqMiddleware do
       # This test ensures that this does not happen
       it "invokes the chain" do
         expect_any_instance_of(Gitlab::SidekiqStatus::ClientMiddleware).to receive(:call).with(*middleware_expected_args).once.and_call_original
+        expect_any_instance_of(Gitlab::SidekiqMiddleware::WorkerContext).to receive(:call).with(*middleware_expected_args).once.and_call_original
         expect_any_instance_of(Labkit::Middleware::Sidekiq::Client).to receive(:call).with(*middleware_expected_args).once.and_call_original
 
         expect { |b| chain.invoke(worker_class_arg, job, queue, redis_pool, &b) }.to yield_control.once

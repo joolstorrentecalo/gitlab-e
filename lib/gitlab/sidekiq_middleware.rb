@@ -18,6 +18,7 @@ module Gitlab
         chain.add Labkit::Middleware::Sidekiq::Server
         chain.add Gitlab::SidekiqMiddleware::InstrumentationLogger
         chain.add Gitlab::SidekiqStatus::ServerMiddleware
+        chain.add Gitlab::SidekiqMiddleware::WorkerContext::Server
       end
     end
 
@@ -28,6 +29,7 @@ module Gitlab
       lambda do |chain|
         chain.add Gitlab::SidekiqStatus::ClientMiddleware
         chain.add Gitlab::SidekiqMiddleware::ClientMetrics
+        chain.add Gitlab::SidekiqMiddleware::WorkerContext::Client
         chain.add Labkit::Middleware::Sidekiq::Client
       end
     end

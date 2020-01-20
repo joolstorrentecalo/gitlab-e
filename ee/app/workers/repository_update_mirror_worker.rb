@@ -20,11 +20,12 @@ class RepositoryUpdateMirrorWorker
     return unless start_mirror(project)
 
     @current_user = project.mirror_user || project.creator
+    with_context(project: project, user: @current_user) do
+      result = Projects::UpdateMirrorService.new(project, @current_user).execute
+      raise UpdateError, result[:message] if result[:status] == :error
 
-    result = Projects::UpdateMirrorService.new(project, @current_user).execute
-    raise UpdateError, result[:message] if result[:status] == :error
-
-    finish_mirror(project)
+      finish_mirror(project)
+    end
   rescue UpdateError => ex
     fail_mirror(project, ex.message)
     raise
